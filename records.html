@@ -15,15 +15,21 @@
         <tr>
             <th scope="col">#</th>
             <th scope="col">Created At</th>
-            <th scope="col">Data</th>
+            <th scope="col">Time</th>
+            <th scope="col">Category Name</th>
+            <th scope="col">Source</th>
+            <th scope="col">Value</th>
         </tr>
         </thead>
         <tbody>
-        {{range .Records}}
+        {{range .}}
         <tr>
             <th scope="row">{{.Id}}</th>
-            <td>{{.CreatedAt}}</td>
-            <td>{{.Data}}</td>
+            <td>{{.CreatedAt.Format "02.01.2006 15:04"}}</td>
+            <td>{{.Time.Format "02.01.2006 15:04"}}</td>
+            <td>{{.CategoryName}}</td>
+            <td>{{.Source}}</td>
+            <td>{{.Value}}</td>
         </tr>
         {{end}}
         </tbody>

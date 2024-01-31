@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"html/template"
@@ -17,25 +18,33 @@ import (
 var db *sql.DB
 
 type Record struct {
-	Id        int
-	Data      string
-	CreatedAt time.Time
+	Id           int
+	CreatedAt    time.Time
+	Time         time.Time
+	CategoryName string
+	Source       string
+	Value        string
 }
 
 func (record Record) save() error {
-	_, err := db.Exec(`INSERT INTO records (created_at, data) VALUES (?, ?)`, record.CreatedAt, record.Data)
+	log.Println("Saving record", record)
+	_, err := db.Exec(`INSERT INTO records (created_at, time, category_name, source, value) VALUES (?, ?, ?, ?, ?)`, record.CreatedAt, record.Time, record.CategoryName, record.Source, record.Value)
 	return err
 }
 
-func NewRecord(data string) Record {
-	return Record{Data: data, CreatedAt: time.Now()}
+func NewRecord(data HKRecord) Record {
+	log.Println("NewRecord form", data)
+	return Record{CreatedAt: time.Now(), Time: data.Time, CategoryName: data.CategoryName, Source: data.Source, Value: data.Value}
 }
 
 var schema = `
             CREATE TABLE IF NOT EXISTS records (
                 id INTEGER PRIMARY KEY NOT NULL,
                 created_at DATETIME NOT NULL,
-                data TEXT NOT NULL
+                time DATETIME NOT NULL,
+                category_name STRING NOT NULL,
+                source STRING NOT NULL,
+                value STRING NOT NULL
             );`
 
 func initializeDB() {
@@ -52,6 +61,15 @@ func initializeDB() {
 	}
 }
 
+// JSON schema
+
+type HKRecord struct {
+	Time         time.Time `json:"time"`
+	CategoryName string    `json:"category_name"`
+	Source       string    `json:"source"`
+	Value        string    `json:"value"`
+}
+
 // URLs handlers
 
 // Handles request with some string data in body and stores it to database
@@ -66,17 +84,30 @@ func hkRequestHandler(w http.ResponseWriter, r *http.Request) {
 			log.Println("Failed to close request body after read.", err.Error())
 		}
 	}(r.Body)
-	reqBody, readBodyErr := io.ReadAll(r.Body)
-	if readBodyErr != nil {
-		log.Println("Failed read request body.", readBodyErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	saveErr := NewRecord(string(reqBody)).save()
-	if saveErr != nil {
-		log.Println("Failed to save new record.", saveErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+
+	dec := json.NewDecoder(r.Body)
+	for {
+		var records []HKRecord
+		if err := dec.Decode(&records); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Println("Failed read decode request body.", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := fmt.Fprintf(w, err.Error())
+			if err != nil {
+				log.Println("Failed to raise response", err.Error())
+				return
+			}
+			return
+		}
+		for _, record := range records {
+			saveErr := NewRecord(record).save()
+			if saveErr != nil {
+				log.Println("Failed to save new record.", saveErr.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
 	}
 	w.WriteHeader(http.StatusCreated)
 }
@@ -97,7 +128,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for samples list path.
 func getSamplesHandler(w http.ResponseWriter, _ *http.Request) {
-	rows, queryErr := db.Query(`SELECT id, data, created_at FROM records ORDER BY created_at DESC`)
+	rows, queryErr := db.Query(`SELECT id, created_at, time, category_name, source, value FROM records ORDER BY created_at DESC`)
 	if queryErr != nil {
 		log.Println("Failed to fetch records from db. ", queryErr.Error())
 	}
@@ -111,7 +142,7 @@ func getSamplesHandler(w http.ResponseWriter, _ *http.Request) {
 	var records []Record
 	for rows.Next() {
 		var r Record
-		scanErr := rows.Scan(&r.Id, &r.Data, &r.CreatedAt)
+		scanErr := rows.Scan(&r.Id, &r.CreatedAt, &r.Time, &r.CategoryName, &r.Source, &r.Value)
 		if scanErr != nil {
 			log.Println("Failed to scan record. ", scanErr.Error())
 		}
@@ -121,15 +152,11 @@ func getSamplesHandler(w http.ResponseWriter, _ *http.Request) {
 		log.Println("Row iteration error. ", rowsErr.Error())
 	}
 
-	type TemplateData struct {
-		Records []Record
-	}
-
 	tmpl, templateErr := template.ParseFiles("records.html")
 	if templateErr != nil {
 		log.Fatal("Failed to load template. ", templateErr.Error())
 	}
-	executeErr := tmpl.Execute(w, TemplateData{Records: records})
+	executeErr := tmpl.Execute(w, records)
 	if executeErr != nil {
 		log.Println("Execute query failed. ", executeErr.Error())
 		return
