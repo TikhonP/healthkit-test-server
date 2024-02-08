@@ -34,7 +34,7 @@ func (record Record) save() error {
 
 func NewRecord(data HKRecord) Record {
 	log.Println("NewRecord form", data)
-	return Record{CreatedAt: time.Now(), Time: data.Time, CategoryName: data.CategoryName, Source: data.Source, Value: data.Value}
+	return Record{CreatedAt: time.Now().UTC(), Time: data.GetTime().UTC(), CategoryName: data.CategoryName, Source: data.Source, Value: data.Value}
 }
 
 var schema = `
@@ -64,10 +64,14 @@ func initializeDB() {
 // JSON schema
 
 type HKRecord struct {
-	Time         time.Time `json:"time"`
-	CategoryName string    `json:"category_name"`
-	Source       string    `json:"source"`
-	Value        string    `json:"value"`
+	Timestamp    int64  `json:"time"`
+	CategoryName string `json:"category_name"`
+	Source       string `json:"source"`
+	Value        string `json:"value"`
+}
+
+func (r *HKRecord) GetTime() time.Time {
+	return time.Unix(r.Timestamp, 0)
 }
 
 // URLs handlers

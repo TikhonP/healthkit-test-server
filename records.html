@@ -25,8 +25,8 @@
         {{range .}}
         <tr>
             <th scope="row">{{.Id}}</th>
-            <td>{{.CreatedAt.Format "02.01.2006 15:04"}}</td>
-            <td>{{.Time.Format "02.01.2006 15:04"}}</td>
+            <td>{{.CreatedAt.Local.Format "02.01.2006 15:04"}}</td>
+            <td>{{.Time.Local.Format "02.01.2006 15:04"}}</td>
             <td>{{.CategoryName}}</td>
             <td>{{.Source}}</td>
             <td>{{.Value}}</td>
