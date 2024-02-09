@@ -9,6 +9,28 @@
 </head>
 <body>
 <div class="container">
+    <h1>Handle Events</h1>
+    <table class="table">
+        <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">Created At</th>
+            <th scope="col">Category Name</th>
+            <th scope="col">Values Count</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .QueryHandleEvents}}
+        <tr>
+            <th scope="row">{{.Id}}</th>
+            <td>{{.CreatedAt.Local.Format "02.01.2006 15:04"}}</td>
+            <td>{{.CategoryName}}</td>
+            <td>{{.ValuesCount}}</td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+
     <h1>Records</h1>
     <table class="table">
         <thead>
@@ -22,7 +44,7 @@
         </tr>
         </thead>
         <tbody>
-        {{range .}}
+        {{range .Records}}
         <tr>
             <th scope="row">{{.Id}}</th>
             <td>{{.CreatedAt.Local.Format "02.01.2006 15:04"}}</td>
